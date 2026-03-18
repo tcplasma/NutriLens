@@ -1,0 +1,49 @@
+# NutriLens — Module Architecture
+
+## Overview
+
+NutriLens is a client-side plate food color analysis tool. The codebase is
+modularized into a slim HTML shell, one CSS file, and 10 focused JavaScript
+modules loaded via <script> tags in dependency order.
+
+## File Map
+
+```
+index.html              HTML structure only (no inline CSS/JS)
+css/style.css           All styles (design tokens, layout, components, responsive)
+js/state.js             Global state (currentImageData, currentImg)
+js/utils.js             Helpers: setProgress(), sleep()
+js/color-utils.js       rgbToHsv, rgbToHex, luminance, rgbToHue,
+                        guessColorLabel (EN), colorToNutrition (EN)
+js/plate-detection.js   detectPlate(), createFoodMask()
+js/kmeans.js            Mini-batch K-Means: samplePixels, kMeans (mini-batch),
+                        initCentroidsKpp, dist2, computeSilhouette,
+                        selectMiniBatch, classifyAllPixels
+js/canvas-renderer.js   drawMaskCanvas, drawClusteredCanvas, drawPlateOverlay,
+                        CLUSTER_COLORS_VIZ
+js/results.js           showResults(), buildNutritionHints()
+js/image-loader.js      loadImageSrc()
+js/demo.js              loadDemo(), drawBlob()
+js/upload.js            Drag & drop, file input, loadFile()
+js/analysis.js          runAnalysis() — main pipeline orchestrator
+```
+
+## Script Load Order (dependency chain)
+
+1. state.js          — no dependencies
+2. utils.js          — no dependencies
+3. color-utils.js    — no dependencies
+4. plate-detection.js — depends on: color-utils (rgbToHsv)
+5. kmeans.js         — depends on: utils (sleep)
+6. canvas-renderer.js — depends on: state (currentImageData)
+7. results.js        — depends on: color-utils, canvas-renderer (CLUSTER_COLORS_VIZ)
+8. image-loader.js   — depends on: state
+9. demo.js           — depends on: image-loader (loadImageSrc)
+10. upload.js        — depends on: image-loader (loadImageSrc)
+11. analysis.js      — depends on: all above
+
+## Key Algorithm: Mini-batch K-Means
+
+Uses mini-batch sampling (default 256 points) per iteration instead of
+processing all points. Centroids are updated incrementally with a decreasing
+learning rate (1/count). K-means++ initialization is preserved.

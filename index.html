@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="description" content="Plate food color analysis — nutrition education tool">
+  <link rel="manifest" href="manifest.json">
+  <title>NutriLens · Plate Food Color Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Noto+Sans+TC:wght@300;400;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <div class="logo-icon">🔬</div>
+      <div class="logo-text">
+        <h1>NutriLens</h1>
+        <span>Plate Food Color Analyzer</span>
+      </div>
+    </header>
+
+    <!-- Upload Card -->
+    <div class="card">
+      <div class="card-title">01 · Select Image</div>
+
+      <div class="upload-zone" id="upload-zone">
+        <input type="file" id="file-input" accept="image/*" capture="environment">
+        <div class="upload-icon">📷</div>
+        <p><strong>Click to upload</strong> or drag & drop an image here</p>
+        <p style="font-size:0.78rem;margin-top:6px;">Camera supported · JPG / PNG · Works on mobile & desktop</p>
+      </div>
+
+      <div class="demo-label">Or use a demo image</div>
+      <div class="demo-grid">
+        <button class="demo-btn" onclick="loadDemo('balanced')"><span>🥗</span>Balanced</button>
+        <button class="demo-btn" onclick="loadDemo('protein')"><span>🥩</span>High Protein</button>
+        <button class="demo-btn" onclick="loadDemo('veggie')"><span>🥦</span>Veggie</button>
+      </div>
+    </div>
+
+    <!-- Preview Card -->
+    <div class="card" id="preview-section">
+      <div class="card-title">02 · Preview &amp; Settings</div>
+      <div style="text-align:center; margin-bottom:16px;">
+        <div class="preview-wrap">
+          <img id="preview-img" alt="Preview">
+          <canvas id="plate-overlay"></canvas>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="setting-group">
+          <label>Clusters K</label>
+          <input type="range" id="k-slider" min="2" max="6" value="3"
+            oninput="document.getElementById('k-val').textContent=this.value">
+          <div class="val" id="k-val">3</div>
+        </div>
+        <div class="setting-group">
+          <label>Plate Detection Sensitivity</label>
+          <input type="range" id="sens-slider" min="1" max="5" value="3"
+            oninput="document.getElementById('sens-val').textContent=this.value">
+          <div class="val" id="sens-val">3</div>
+        </div>
+      </div>
+      <button class="btn-analyze" id="btn-analyze" onclick="runAnalysis()">
+        🔍 Start Analysis
+      </button>
+      <div id="progress-wrap">
+        <div class="progress-step" id="progress-step">Processing…</div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-section">
+      <div class="card">
+        <div class="card-title">03 · Analysis Metrics</div>
+        <div class="metric-row">
+          <div class="metric">
+            <div class="val" id="res-k">—</div>
+            <div class="lbl">Clusters K</div>
+          </div>
+          <div class="metric">
+            <div class="val" id="res-silhouette">—</div>
+            <div class="lbl">Silhouette Score</div>
+          </div>
+          <div class="metric">
+            <div class="val" id="res-pixels">—</div>
+            <div class="lbl">Food Pixels</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">04 · Color Clustering Results</div>
+        <div class="clusters-wrap" id="clusters-wrap"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">05 · Visualization</div>
+        <div class="canvas-grid">
+          <div class="canvas-wrap">
+            <canvas id="canvas-mask"></canvas>
+            <div class="canvas-label">Food Mask</div>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="canvas-clustered"></canvas>
+            <div class="canvas-label">K-Means Clustering</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">06 · Nutritional Color Hints</div>
+        <div class="nutrition-grid" id="nutrition-grid"></div>
+      </div>
+    </div>
+
+    <footer>
+      NutriLens · Client-side only · No data uploaded<br>
+      Deployable to GitHub Pages · Completely free
+    </footer>
+  </div>
+
+  <!-- Hidden canvases for processing -->
+  <canvas id="canvas-work" style="display:none"></canvas>
+
+  <!-- JavaScript modules (loaded in dependency order) -->
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/color-utils.js"></script>
+  <script src="js/plate-detection.js"></script>
+  <script src="js/kmeans.js"></script>
+  <script src="js/canvas-renderer.js"></script>
+  <script src="js/results.js"></script>
+  <script src="js/image-loader.js"></script>
+  <script src="js/demo.js"></script>
+  <script src="js/upload.js"></script>
+  <script src="js/analysis.js"></script>
+</body>
+
+</html>
