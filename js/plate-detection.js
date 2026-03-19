@@ -21,6 +21,40 @@ function detectPlate(imgData, sensitivity) {
     };
 }
 
+// ── Gaussian Blur 5x5 ───────────────────────────
+function gaussianBlur5(lum, W, H) {
+    // 5x5 Gaussian kernel (sigma≈1.0), separable
+    const kernel = [1, 4, 6, 4, 1];  // 總和 16
+    const tmp = new Float32Array(W * H);
+    const out = new Float32Array(W * H);
+
+    // 水平 pass
+    for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+            let sum = 0, w = 0;
+            for (let k = -2; k <= 2; k++) {
+                const xi = Math.min(Math.max(x + k, 0), W - 1);
+                sum += lum[y * W + xi] * kernel[k + 2];
+                w += kernel[k + 2];
+            }
+            tmp[y * W + x] = sum / w;
+        }
+    }
+    // 垂直 pass
+    for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+            let sum = 0, w = 0;
+            for (let k = -2; k <= 2; k++) {
+                const yi = Math.min(Math.max(y + k, 0), H - 1);
+                sum += tmp[yi * W + x] * kernel[k + 2];
+                w += kernel[k + 2];
+            }
+            out[y * W + x] = sum / w;
+        }
+    }
+    return out;
+}
+
 // ── Sobel 梯度（只算亮度通道）──────────────────
 function computeGradient(imgData) {
     const { width: W, height: H, data } = imgData;
@@ -34,19 +68,22 @@ function computeGradient(imgData) {
         const p = i * 4;
         lum[i] = 0.299 * data[p] + 0.587 * data[p+1] + 0.114 * data[p+2];
     }
+    
+    // Gaussian Blur 前處理，消除食物紋理和 JPEG 雜訊
+    const blurred = gaussianBlur5(lum, W, H);
 
-    // Sobel 3x3
+    // Sobel 3x3 on blurred luminance
     for (let y = 1; y < H - 1; y++) {
         for (let x = 1; x < W - 1; x++) {
             const i = y * W + x;
             const gX = (
-                -lum[(y-1)*W+(x-1)] + lum[(y-1)*W+(x+1)]
-                -2*lum[y*W+(x-1)]   + 2*lum[y*W+(x+1)]
-                -lum[(y+1)*W+(x-1)] + lum[(y+1)*W+(x+1)]
+                -blurred[(y-1)*W+(x-1)] + blurred[(y-1)*W+(x+1)]
+                -2*blurred[y*W+(x-1)]   + 2*blurred[y*W+(x+1)]
+                -blurred[(y+1)*W+(x-1)] + blurred[(y+1)*W+(x+1)]
             );
             const gY = (
-                -lum[(y-1)*W+(x-1)] - 2*lum[(y-1)*W+x] - lum[(y-1)*W+(x+1)]
-                +lum[(y+1)*W+(x-1)] + 2*lum[(y+1)*W+x] + lum[(y+1)*W+(x+1)]
+                -blurred[(y-1)*W+(x-1)] - 2*blurred[(y-1)*W+x] - blurred[(y-1)*W+(x+1)]
+                +blurred[(y+1)*W+(x-1)] + 2*blurred[(y+1)*W+x] + blurred[(y+1)*W+(x+1)]
             );
             gx[i] = gX;
             gy[i] = gY;
