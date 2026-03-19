@@ -39,7 +39,7 @@ function drawClusteredCanvas(foodMask, allLabels, centroids, W, H) {
     ctx.putImageData(id, 0, 0);
 }
 
-function drawPlateOverlay(center, radius) {
+function drawPlateOverlay(center, radius, ellipse = null) {
     const img = document.getElementById('preview-img');
     const ov = document.getElementById('plate-overlay');
     const displayW = img.offsetWidth || img.naturalWidth;
@@ -56,7 +56,20 @@ function drawPlateOverlay(center, radius) {
     const ctx = ov.getContext('2d');
     ctx.clearRect(0, 0, displayW, displayH);
     ctx.beginPath();
-    ctx.arc(center[0] * scaleX, center[1] * scaleY, radius * Math.min(scaleX, scaleY), 0, Math.PI * 2);
+    
+    if (ellipse) { // If we have an ellipse, draw it
+        ctx.ellipse(
+            ellipse.cx * scaleX, 
+            ellipse.cy * scaleY, 
+            ellipse.a * scaleX, 
+            ellipse.b * scaleY, 
+            ellipse.theta, 
+            0, Math.PI * 2
+        );
+    } else { // Fallback standard circle
+        ctx.arc(center[0] * scaleX, center[1] * scaleY, radius * Math.min(scaleX, scaleY), 0, Math.PI * 2);
+    }
+    
     ctx.strokeStyle = '#7fffd4';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 4]);

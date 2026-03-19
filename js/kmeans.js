@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════
-//  MINI-BATCH K-MEANS CLUSTERING
+//  MINI-BATCH K-MEANS CLUSTERING (CIE LAB space)
 // ═══════════════════════════════════════════════
 
 /**
@@ -25,7 +25,8 @@ function samplePixels(pixels, maxN) {
  * @returns {Object} { labels, centroids, silhouette }
  */
 async function kMeans(pixels, K, maxIter = 30, batchSize = 256) {
-    const pts = pixels.map(p => [p.r, p.g, p.b]);
+    // Cluster in CIE LAB space for perceptual uniformity
+    const pts = pixels.map(p => rgbToLab(p.r, p.g, p.b));
     const centroids = initCentroidsKpp(pts, K);
 
     // Per-centroid update counters (for incremental learning rate)
@@ -56,9 +57,9 @@ async function kMeans(pixels, K, maxIter = 30, batchSize = 256) {
             // Learning rate = 1 / counts[k] — decreases as more points are seen
             const lr = 1 / counts[k];
             centroids[k] = [
-                Math.round(centroids[k][0] + lr * (pts[idx][0] - centroids[k][0])),
-                Math.round(centroids[k][1] + lr * (pts[idx][1] - centroids[k][1])),
-                Math.round(centroids[k][2] + lr * (pts[idx][2] - centroids[k][2]))
+                centroids[k][0] + lr * (pts[idx][0] - centroids[k][0]),
+                centroids[k][1] + lr * (pts[idx][1] - centroids[k][1]),
+                centroids[k][2] + lr * (pts[idx][2] - centroids[k][2])
             ];
         }
 
@@ -81,7 +82,10 @@ async function kMeans(pixels, K, maxIter = 30, batchSize = 256) {
 
     // Silhouette (sample-based, fast)
     const silhouette = computeSilhouette(pts, labels, K);
-    return { labels, centroids, silhouette };
+
+    // Convert LAB centroids back to RGB for display
+    const rgbCentroids = centroids.map(c => labToRgb(c[0], c[1], c[2]));
+    return { labels, centroids: rgbCentroids, labCentroids: centroids, silhouette };
 }
 
 /**
@@ -115,7 +119,8 @@ function initCentroidsKpp(pts, K) {
 }
 
 /**
- * Squared Euclidean distance between two RGB points.
+ * Squared Euclidean distance between two 3-element vectors.
+ * Works for both RGB and LAB space.
  */
 function dist2(a, b) {
     return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
@@ -149,20 +154,30 @@ function computeSilhouette(pts, labels, K) {
 }
 
 /**
- * Classify ALL food pixels to nearest centroid.
+ * Classify ALL food pixels to nearest centroid (in LAB space).
  */
-function classifyAllPixels(foodMask, imgData, centroids) {
+function classifyAllPixels(foodMask, imgData, labCentroids, vLut) {
     const { width: W, height: H, data } = imgData;
     const allLabels = new Int8Array(W * H).fill(-1);
-    const areas = new Array(centroids.length).fill(0);
+    const areas = new Array(labCentroids.length).fill(0);
 
     for (let i = 0; i < foodMask.length; i++) {
         if (!foodMask[i]) continue;
         const pi = i * 4;
-        const p = [data[pi], data[pi + 1], data[pi + 2]];
+        let r = data[pi], g = data[pi + 1], b = data[pi + 2];
+        
+        // Apply V-channel LUT mapping on the same scale
+        if (vLut) {
+            const hsv = rgbToHsvFull(r, g, b);
+            const newV = vLut[Math.round(hsv.v * 255)] / 255;
+            const rgb = hsvToRgb(hsv.h, hsv.s, newV);
+            r = rgb.r; g = rgb.g; b = rgb.b;
+        }
+
+        const p = rgbToLab(r, g, b);
         let best = 0, bestD = Infinity;
-        for (let k = 0; k < centroids.length; k++) {
-            const d = dist2(p, centroids[k]);
+        for (let k = 0; k < labCentroids.length; k++) {
+            const d = dist2(p, labCentroids[k]);
             if (d < bestD) { bestD = d; best = k; }
         }
         allLabels[i] = best;

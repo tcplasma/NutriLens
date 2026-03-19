@@ -13,9 +13,12 @@ index.html              HTML structure only (no inline CSS/JS)
 css/style.css           All styles (design tokens, layout, components, responsive)
 js/state.js             Global state (currentImageData, currentImg)
 js/utils.js             Helpers: setProgress(), sleep()
-js/color-utils.js       rgbToHsv, rgbToHex, luminance, rgbToHue,
-                        guessColorLabel (EN), colorToNutrition (EN)
-js/plate-detection.js   detectPlate(), createFoodMask()
+js/color-utils.js       rgbToHsv, rgbToHsvFull, hsvToRgb, rgbToLab, labToRgb, rgbToHex,
+                        luminance, rgbToHue, guessColorLabel, colorToNutrition
+js/histogram-eq.js      equalizeV()
+js/plate-detection.js   detectPlate(), detectPlateBySliding(), detectPlateLegacy(),
+                        circleWhiteScore(), createFoodMask(), fitEllipse(),
+                        createEllipseFoodMask()
 js/kmeans.js            Mini-batch K-Means: samplePixels, kMeans (mini-batch),
                         initCentroidsKpp, dist2, computeSilhouette,
                         selectMiniBatch, classifyAllPixels
@@ -25,6 +28,7 @@ js/results.js           showResults(), buildNutritionHints()
 js/image-loader.js      loadImageSrc()
 js/demo.js              loadDemo(), drawBlob()
 js/upload.js            Drag & drop, file input, loadFile()
+js/perspective-warp.js  warpEllipseToCircle(), inverseWarpPoint()
 js/analysis.js          runAnalysis() — main pipeline orchestrator
 ```
 
@@ -33,14 +37,16 @@ js/analysis.js          runAnalysis() — main pipeline orchestrator
 1. state.js          — no dependencies
 2. utils.js          — no dependencies
 3. color-utils.js    — no dependencies
-4. plate-detection.js — depends on: color-utils (rgbToHsv)
-5. kmeans.js         — depends on: utils (sleep)
-6. canvas-renderer.js — depends on: state (currentImageData)
-7. results.js        — depends on: color-utils, canvas-renderer (CLUSTER_COLORS_VIZ)
-8. image-loader.js   — depends on: state
-9. demo.js           — depends on: image-loader (loadImageSrc)
-10. upload.js        — depends on: image-loader (loadImageSrc)
-11. analysis.js      — depends on: all above
+4. histogram-eq.js   — depends on: color-utils (rgbToHsvFull, hsvToRgb)
+5. plate-detection.js — depends on: color-utils (rgbToHsv)
+6. kmeans.js         — depends on: utils (sleep), color-utils (rgbToLab, labToRgb)
+7. canvas-renderer.js — depends on: state (currentImageData)
+8. results.js        — depends on: color-utils, canvas-renderer
+9. image-loader.js   — depends on: state
+10. demo.js          — depends on: image-loader (loadImageSrc)
+11. upload.js        — depends on: image-loader (loadImageSrc)
+12. perspective-warp.js — depends on: nothing (pure canvas API)
+13. analysis.js      — depends on: all above
 
 ## Key Algorithm: Mini-batch K-Means
 
