@@ -55,6 +55,32 @@ function gaussianBlur5(lum, W, H) {
     return out;
 }
 
+// ── Non-Maximum Suppression (NMS) ─────────────────
+function nonMaxSuppression(gx, gy, mag, W, H) {
+    const out = new Float32Array(W * H);
+    for (let y = 1; y < H - 1; y++) {
+        for (let x = 1; x < W - 1; x++) {
+            const i = y * W + x;
+            if (mag[i] === 0) continue;
+            // 梯度方向角（量化到 0/45/90/135 度）
+            const angle = Math.atan2(gy[i], gx[i]) * 180 / Math.PI;
+            const a = ((angle % 180) + 180) % 180;
+            let n1, n2;
+            if (a < 22.5 || a >= 157.5) {
+                n1 = mag[y * W + x - 1]; n2 = mag[y * W + x + 1];
+            } else if (a < 67.5) {
+                n1 = mag[(y-1)*W+(x+1)]; n2 = mag[(y+1)*W+(x-1)];
+            } else if (a < 112.5) {
+                n1 = mag[(y-1)*W+x]; n2 = mag[(y+1)*W+x];
+            } else {
+                n1 = mag[(y-1)*W+(x-1)]; n2 = mag[(y+1)*W+(x+1)];
+            }
+            out[i] = (mag[i] >= n1 && mag[i] >= n2) ? mag[i] : 0;
+        }
+    }
+    return out;
+}
+
 // ── Sobel 梯度（只算亮度通道）──────────────────
 function computeGradient(imgData) {
     const { width: W, height: H, data } = imgData;
@@ -90,7 +116,11 @@ function computeGradient(imgData) {
             mag[i] = Math.sqrt(gX*gX + gY*gY);
         }
     }
-    return { gx, gy, mag };
+    
+    // 套用 NMS (Non-Maximum Suppression) 將邊緣壓薄到 1px
+    const thinMag = nonMaxSuppression(gx, gy, mag, W, H);
+    
+    return { gx, gy, mag: thinMag };
 }
 
 // ── Hough 圓形累積（梯度方向投票）─────────────
@@ -107,9 +137,12 @@ function houghCircle(imgData, grad, sensitivity) {
     const rMax = Math.round(minD * 0.48);
     const rStep = Math.max(2, Math.round((rMax - rMin) / 8));
 
-    // 累積器：用降採樣的 cx/cy 網格節省記憶體
-    const acc = new Map();   // key = `cx,cy,r` → 累積票數
+    // 累積器：使用 3D Typed Array 節省記憶體並大幅提升效能
     const step = 8;          // 累積器解析度（px）
+    const accW = Math.ceil(W / step);
+    const accH = Math.ceil(H / step);
+    const numR = Math.floor((rMax - rMin) / rStep) + 1;
+    const acc = new Float32Array(accW * accH * numR);
 
     for (let y = 1; y < H - 1; y++) {
         for (let x = 1; x < W - 1; x++) {
@@ -123,28 +156,55 @@ function houghCircle(imgData, grad, sensitivity) {
 
             // 沿梯度方向（正負兩向）各投票
             for (const sign of [1, -1]) {
-                for (let r = rMin; r <= rMax; r += rStep) {
-                    const cx = Math.round((x + sign * nx * r) / step) * step;
-                    const cy = Math.round((y + sign * ny * r) / step) * step;
-                    if (cx < 0 || cx >= W || cy < 0 || cy >= H) continue;
-                    // 把 r snap 到最近的 rStep 格子
-                    const rSnap = Math.round(r / rStep) * rStep;
-                    const key = `${cx},${cy},${rSnap}`;
-                    acc.set(key, (acc.get(key) || 0) + 1);
+                for (let rIdx = 0; rIdx < numR; rIdx++) {
+                    const r = rMin + rIdx * rStep;
+                    const acx = Math.round((x + sign * nx * r) / step);
+                    const acy = Math.round((y + sign * ny * r) / step);
+                    if (acx >= 0 && acx < accW && acy >= 0 && acy < accH) {
+                        acc[(rIdx * accH + acy) * accW + acx] += 1;
+                    }
                 }
             }
         }
     }
 
-    if (acc.size === 0) return { score: 0, cx: W/2, cy: H/2, r: minD * 0.42 };
-
-    // 找累積最高的候選
-    let bestKey = '', bestVotes = 0;
-    for (const [key, votes] of acc) {
-        if (votes > bestVotes) { bestVotes = votes; bestKey = key; }
+    // 找峰值前，先對 (x, y) 空間做一次 3x3 blur，把相鄰票數合併
+    const blurredAcc = new Float32Array(acc.length);
+    for (let rIdx = 0; rIdx < numR; rIdx++) {
+        const rOffset = rIdx * accH * accW;
+        for (let y = 0; y < accH; y++) {
+            for (let x = 0; x < accW; x++) {
+                let sum = 0;
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const xi = Math.min(Math.max(x + dx, 0), accW - 1);
+                        const yi = Math.min(Math.max(y + dy, 0), accH - 1);
+                        sum += acc[rOffset + yi * accW + xi];
+                    }
+                }
+                blurredAcc[rOffset + y * accW + x] = sum;
+            }
+        }
     }
 
-    const [cx, cy, r] = bestKey.split(',').map(Number);
+    // 找累積 highest peak
+    let bestIdx = 0, bestVotes = 0;
+    for (let i = 0; i < blurredAcc.length; i++) {
+        if (blurredAcc[i] > bestVotes) { 
+            bestVotes = Math.max(bestVotes, blurredAcc[i]);
+            bestIdx = i; 
+        }
+    }
+
+    if (bestVotes === 0) return { score: 0, cx: W/2, cy: H/2, r: minD * 0.42 };
+    
+    const bestAcx = bestIdx % accW;
+    const bestAcy = Math.floor(bestIdx / accW) % accH;
+    const bestRIdx = Math.floor(bestIdx / (accW * accH));
+
+    const cx = bestAcx * step;
+    const cy = bestAcy * step;
+    const r = rMin + bestRIdx * rStep;
 
     // 用白色比例來驗證（但只看圓內，不和外側比）
     const whiteRatio = measureInnerWhiteRatio(imgData, cx, cy, r, sensitivity);
