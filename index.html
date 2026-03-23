@@ -7,11 +7,10 @@
   <meta name="theme-color" content="#1a1a2e">
   <meta name="description" content="Plate food color analysis — nutrition education tool">
   <link rel="manifest" href="manifest.json">
-  <title>NutriLens · Plate Food Color Analyzer</title>
+  <title>TaiwanICDF · Plate Food Color Analyzer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Noto+Sans+TC:wght@300;400;700&display=swap"
-    rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..900;1,8..60,300..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -20,9 +19,9 @@
 
     <!-- Header -->
     <header>
-      <div class="logo-icon">🔬</div>
+      <div class="logo-icon"><img src="logo.png" alt="logo" style="width: 100%; height: 100%; object-fit: contain;"></div>
       <div class="logo-text">
-        <h1>NutriLens</h1>
+        <h1>TaiwanICDF</h1>
         <span>Plate Food Color Analyzer</span>
       </div>
     </header>
@@ -67,6 +66,16 @@
           <input type="range" id="sens-slider" min="1" max="5" value="3"
             oninput="document.getElementById('sens-val').textContent=this.value">
           <div class="val" id="sens-val">3</div>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="setting-group" style="flex-direction: row; align-items: center; justify-content: space-between;">
+           <label for="enable-plate-color">Filter Plate Color</label>
+           <input type="checkbox" id="enable-plate-color" checked style="width: 20px; height: 20px;">
+        </div>
+        <div class="setting-group" style="flex-direction: row; align-items: center; justify-content: space-between;">
+           <label for="plate-color-picker">Plate Base Color</label>
+           <input type="color" id="plate-color-picker" value="#ffffff" style="width: 40px; height: 30px; padding: 0; border: none; border-radius: 4px; cursor: pointer;">
         </div>
       </div>
       <button class="btn-analyze" id="btn-analyze" onclick="runAnalysis()">
@@ -126,7 +135,7 @@
     </div>
 
     <footer>
-      NutriLens · Client-side only · No data uploaded<br>
+      TaiwanICDF · Client-side only · No data uploaded<br>
       Deployable to GitHub Pages · Completely free
     </footer>
   </div>

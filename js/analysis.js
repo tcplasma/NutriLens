@@ -26,8 +26,22 @@ async function runAnalysis() {
         for (let x = 0; x < currentImageData.width; x++) {
             if ((x-sx)*(x-sx) + (y-sy)*(y-sy) > r2) continue;
             const i = (y * currentImageData.width + x) * 4;
-            const { s, v } = rgbToHsv(currentImageData.data[i], currentImageData.data[i+1], currentImageData.data[i+2]);
-            if (s <= 0.12 && v >= 0.82) whitePixels.push({x, y});
+            const enablePlateColor = document.getElementById('enable-plate-color').checked;
+            let isPlate = false;
+            if (enablePlateColor) {
+                const selectedPlateColor = document.getElementById('plate-color-picker').value;
+                const rPlate = parseInt(selectedPlateColor.slice(1, 3), 16);
+                const gPlate = parseInt(selectedPlateColor.slice(3, 5), 16);
+                const bPlate = parseInt(selectedPlateColor.slice(5, 7), 16);
+                const dist = Math.sqrt((currentImageData.data[i] - rPlate)**2 + (currentImageData.data[i+1] - gPlate)**2 + (currentImageData.data[i+2] - bPlate)**2);
+                const tolerance = [80, 70, 60, 50, 40][sens - 1];
+                isPlate = dist < tolerance;
+            } else {
+                const { s, v } = rgbToHsv(currentImageData.data[i], currentImageData.data[i+1], currentImageData.data[i+2]);
+                isPlate = s <= 0.12 && v >= 0.82; 
+            }
+            
+            if (isPlate) whitePixels.push({x, y});
         }
     }
 

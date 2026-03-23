@@ -1,6 +1,6 @@
 {
-  "name": "NutriLens Plate Food Analyzer",
-  "short_name": "NutriLens",
+  "name": "TaiwanICDF Plate Food Analyzer",
+  "short_name": "TaiwanICDF",
   "description": "Plate food color analysis — nutrition education tool",
   "start_url": "./index.html",
   "display": "standalone",

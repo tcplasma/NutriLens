@@ -234,7 +234,20 @@ function measureInnerWhiteRatio(imgData, cx, cy, r, sensitivity) {
             total++;
             const i = (Math.round(y) * W + Math.round(x)) * 4;
             const { s, v } = rgbToHsv(data[i], data[i+1], data[i+2]);
-            if (s < satT && v > briT) white++;
+            const enablePlateColor = document.getElementById('enable-plate-color').checked;
+            let isPlate = false;
+            if (enablePlateColor) {
+                const selectedPlateColor = document.getElementById('plate-color-picker').value;
+                const rPlate = parseInt(selectedPlateColor.slice(1, 3), 16);
+                const gPlate = parseInt(selectedPlateColor.slice(3, 5), 16);
+                const bPlate = parseInt(selectedPlateColor.slice(5, 7), 16);
+                const dist = Math.sqrt((data[i] - rPlate)**2 + (data[i+1] - gPlate)**2 + (data[i+2] - bPlate)**2);
+                const tolerance = [80, 70, 60, 50, 40][sensitivity - 1];
+                isPlate = dist < tolerance;
+            } else {
+                isPlate = s < satT && v > briT; 
+            }
+            if (isPlate) white++;
         }
     }
     return total > 0 ? white / total : 0;
@@ -254,8 +267,30 @@ function createFoodMask(imgData, center, radius) {
             if (dx * dx + dy * dy > r2) continue;
             const i = (y * W + x) * 4;
             const rVal = data[i], gVal = data[i+1], bVal = data[i+2];
-            const { s, v } = rgbToHsv(rVal, gVal, bVal);
-            if (s > 0.12 || v < 0.82) {
+            // Check if user enabled custom plate color instead of relying just on saturation/value
+            const enablePlateColor = document.getElementById('enable-plate-color').checked;
+            
+            let isPlate = false;
+            if (enablePlateColor) {
+                const selectedPlateColor = document.getElementById('plate-color-picker').value;
+                const rPlate = parseInt(selectedPlateColor.slice(1, 3), 16);
+                const gPlate = parseInt(selectedPlateColor.slice(3, 5), 16);
+                const bPlate = parseInt(selectedPlateColor.slice(5, 7), 16);
+                
+                // simple euclidean distance for color matching. 
+                const dist = Math.sqrt((rVal - rPlate)**2 + (gVal - gPlate)**2 + (bVal - bPlate)**2);
+                
+                // Sensitivity determines tolerance
+                const tolerance = [80, 70, 60, 50, 40][document.getElementById('sens-slider').value - 1];
+                
+                isPlate = dist < tolerance;
+                
+            } else {
+               const { s, v } = rgbToHsv(rVal, gVal, bVal);
+               isPlate = s <= 0.12 && v >= 0.82; 
+            }
+            
+            if (!isPlate) {
                 foodMask[y * W + x] = 1;
                 foodPixels.push({ x, y, r: rVal, g: gVal, b: bVal });
             }
@@ -298,8 +333,22 @@ function createEllipseFoodMask(imgData, ellipse) {
             if ((rx*rx)/a2 + (ry*ry)/b2 > 1) continue;
             const i = (y*W+x)*4;
             const rVal=data[i], gVal=data[i+1], bVal=data[i+2];
-            const { s, v } = rgbToHsv(rVal, gVal, bVal);
-            if (s > 0.12 || v < 0.82) {
+            const enablePlateColor = document.getElementById('enable-plate-color').checked;
+            let isPlate = false;
+            if (enablePlateColor) {
+                const selectedPlateColor = document.getElementById('plate-color-picker').value;
+                const rPlate = parseInt(selectedPlateColor.slice(1, 3), 16);
+                const gPlate = parseInt(selectedPlateColor.slice(3, 5), 16);
+                const bPlate = parseInt(selectedPlateColor.slice(5, 7), 16);
+                const dist = Math.sqrt((rVal - rPlate)**2 + (gVal - gPlate)**2 + (bVal - bPlate)**2);
+                const tolerance = [80, 70, 60, 50, 40][document.getElementById('sens-slider').value - 1];
+                isPlate = dist < tolerance;
+            } else {
+               const { s, v } = rgbToHsv(rVal, gVal, bVal);
+               isPlate = s <= 0.12 && v >= 0.82; 
+            }
+            
+            if (!isPlate) {
                 foodMask[y*W+x] = 1;
                 foodPixels.push({ x, y, r: rVal, g: gVal, b: bVal });
             }
